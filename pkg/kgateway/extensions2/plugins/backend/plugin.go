@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"istio.io/istio/pkg/kube/kclient"
 	"istio.io/istio/pkg/kube/krt"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/kgateway-dev/kgateway/v2/api/v1alpha1/kgateway"
@@ -34,10 +35,11 @@ const (
 
 // backendIr is the internal representation of a backend.
 type backendIr struct {
-	awsIr    *AwsIr
-	staticIr *StaticIr
-	dfpIr    *DfpIr
-	gcpIr    *GcpIr
+	awsIr       *AwsIr
+	staticIr    *StaticIr
+	dfpIr       *DfpIr
+	gcpIr       *GcpIr
+	aggregateIr *AggregateIr
 	// +noKrtEquals
 	errors []error
 }
@@ -63,6 +65,10 @@ func (u *backendIr) Equals(other any) bool {
 	if !u.gcpIr.Equals(otherBackend.gcpIr) {
 		return false
 	}
+	// Aggregate
+	if !u.aggregateIr.Equals(otherBackend.aggregateIr) {
+		return false
+	}
 	return true
 }
 
@@ -76,7 +82,7 @@ func NewPlugin(commoncol *collections.CommonCollections) sdk.Plugin {
 	col := krt.WrapClient(cli, commoncol.KrtOpts.ToOptions("Backends")...)
 
 	gk := wellknown.BackendGVK.GroupKind()
-	translateFn := buildTranslateFunc(commoncol.Secrets)
+	translateFn := buildTranslateFunc(commoncol.Secrets, col, commoncol.Services, commoncol.RefGrants)
 	bcol := krt.NewCollection(col, func(krtctx krt.HandlerContext, i *kgateway.Backend) *ir.BackendObjectIR {
 		backendIR := translateFn(krtctx, i)
 		if len(backendIR.errors) > 0 {
@@ -126,6 +132,9 @@ func NewPlugin(commoncol *collections.CommonCollections) sdk.Plugin {
 // the plugin can use to build the envoy config.
 func buildTranslateFunc(
 	secrets *krtcollections.SecretIndex,
+	rawBackends krt.Collection[*kgateway.Backend],
+	services krt.Collection[*corev1.Service],
+	refGrants *krtcollections.RefGrantIndex,
 ) func(krtctx krt.HandlerContext, i *kgateway.Backend) *backendIr {
 	return func(krtctx krt.HandlerContext, i *kgateway.Backend) *backendIr {
 		var beIr backendIr
@@ -199,6 +208,10 @@ func buildTranslateFunc(
 				beIr.errors = append(beIr.errors, err)
 			}
 			beIr.gcpIr = gcpIr
+		case i.Spec.Aggregate != nil:
+			aggregateIr, errs := buildAggregateIr(krtctx, i, rawBackends, services, refGrants)
+			beIr.errors = append(beIr.errors, errs...)
+			beIr.aggregateIr = aggregateIr
 		}
 		return &beIr
 	}
@@ -233,6 +246,8 @@ func processBackendForEnvoy(ctx context.Context, in ir.BackendObjectIR, out *env
 			logger.Error("failed to process gcp backend", "error", err)
 			beIr.errors = append(beIr.errors, err)
 		}
+	case spec.Aggregate != nil:
+		processAggregate(beIr.aggregateIr, out)
 	}
 	return nil
 }

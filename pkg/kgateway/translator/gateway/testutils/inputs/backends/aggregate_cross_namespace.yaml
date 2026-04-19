@@ -1,0 +1,89 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: example-gateway
+  namespace: default
+spec:
+  gatewayClassName: example-gateway-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: aggregate-xns-route
+  namespace: default
+spec:
+  parentRefs:
+    - name: example-gateway
+  hostnames:
+    - "example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: my-aggregate-xns
+          kind: Backend
+          group: gateway.kgateway.dev
+          port: 80
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: my-aggregate-xns
+  namespace: default
+spec:
+  type: Aggregate
+  aggregate:
+    members:
+      - backendRef:
+          name: local-backend
+          group: gateway.kgateway.dev
+          kind: Backend
+      - backendRef:
+          name: remote-backend
+          namespace: other
+          group: gateway.kgateway.dev
+          kind: Backend
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: local-backend
+  namespace: default
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: local.example.com
+        port: 8080
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: remote-backend
+  namespace: other
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: remote.example.com
+        port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-agg-backend
+  namespace: other
+spec:
+  from:
+    - group: gateway.kgateway.dev
+      kind: Backend
+      namespace: default
+  to:
+    - group: gateway.kgateway.dev
+      kind: Backend

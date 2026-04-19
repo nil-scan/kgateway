@@ -40,6 +40,8 @@ const (
 	BackendTypeDynamicForwardProxy BackendType = "DynamicForwardProxy"
 	// BackendTypeGCP is the type for GCP backends.
 	BackendTypeGCP BackendType = "GCP"
+	// BackendTypeAggregate is the type for aggregate backends.
+	BackendTypeAggregate BackendType = "Aggregate"
 )
 
 // BackendSpec defines the desired state of Backend.
@@ -47,10 +49,11 @@ const (
 // +kubebuilder:validation:XValidation:message="static backend must be specified when type is 'Static'",rule="self.type == 'Static' ? has(self.static) : true"
 // +kubebuilder:validation:XValidation:message="dynamicForwardProxy backend must be specified when type is 'DynamicForwardProxy'",rule="self.type == 'DynamicForwardProxy' ? has(self.dynamicForwardProxy) : true"
 // +kubebuilder:validation:XValidation:message="gcp backend must be specified when type is 'GCP'",rule="self.type == 'GCP' ? has(self.gcp) : true"
-// +kubebuilder:validation:ExactlyOneOf=aws;static;dynamicForwardProxy;gcp
+// +kubebuilder:validation:XValidation:message="aggregate backend must be specified when type is 'Aggregate'",rule="self.type == 'Aggregate' ? has(self.aggregate) : true"
+// +kubebuilder:validation:ExactlyOneOf=aws;static;dynamicForwardProxy;gcp;aggregate
 type BackendSpec struct {
 	// Type indicates the type of the backend to be used.
-	// +kubebuilder:validation:Enum=AWS;Static;DynamicForwardProxy;GCP
+	// +kubebuilder:validation:Enum=AWS;Static;DynamicForwardProxy;GCP;Aggregate
 	// Deprecated: The Type field is deprecated and will be removed in a future release.
 	// The backend type is inferred from the configuration.
 	// +optional
@@ -67,6 +70,9 @@ type BackendSpec struct {
 	// Gcp is the GCP backend configuration.
 	// +optional
 	Gcp *GcpBackend `json:"gcp,omitempty"`
+	// Aggregate is the aggregate backend configuration.
+	// +optional
+	Aggregate *AggregateBackend `json:"aggregate,omitempty"`
 }
 
 // AppProtocol defines the application protocol to use when communicating with the backend.
@@ -248,6 +254,30 @@ type Host struct {
 	// Port is the port to use for the backend.
 	// +required
 	Port gwv1.PortNumber `json:"port"`
+}
+
+// AggregateBackend configures an aggregate cluster that composes an ordered list of
+// member backends. Envoy routes traffic to the highest-priority available member,
+// falling back to subsequent members on failure. This maps directly to the Envoy
+// aggregate cluster type (envoy.clusters.aggregate).
+type AggregateBackend struct {
+	// Members is the ordered list of backend references that form the aggregate cluster.
+	// Traffic is routed to the first available member in priority order.
+	// Each member may reference a Backend (gateway.kgateway.dev) or a Service (core).
+	// Cross-namespace references require a ReferenceGrant in the target namespace.
+	// +required
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	Members []AggregateBackendMember `json:"members"`
+}
+
+// AggregateBackendMember is a single member of an aggregate backend.
+// +kubebuilder:validation:XValidation:message="only Backend (gateway.kgateway.dev) and Service (core) kinds are supported as aggregate members",rule="((!has(self.backendRef.group) || self.backendRef.group == ”) && (!has(self.backendRef.kind) || self.backendRef.kind == 'Service')) || (self.backendRef.group == 'gateway.kgateway.dev' && self.backendRef.kind == 'Backend')"
+type AggregateBackendMember struct {
+	// BackendRef is a reference to the backend resource for this member.
+	// Supported kinds: Backend (gateway.kgateway.dev) and Service (core "").
+	// +required
+	BackendRef gwv1.BackendObjectReference `json:"backendRef"`
 }
 
 // BackendStatus defines the observed state of Backend.

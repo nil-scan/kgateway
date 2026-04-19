@@ -1084,6 +1084,39 @@ func TestBasic(t *testing.T) {
 		})
 	})
 
+	t.Run("Aggregate backend with Backend members", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "backends/aggregate_backends.yaml",
+			outputFile: "backends/aggregate_backends.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("Aggregate backend with Service members", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "backends/aggregate_services.yaml",
+			outputFile: "backends/aggregate_services.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
+	t.Run("Aggregate backend cross-namespace with ReferenceGrant", func(t *testing.T) {
+		test(t, translatorTestCase{
+			inputFile:  "backends/aggregate_cross_namespace.yaml",
+			outputFile: "backends/aggregate_cross_namespace.yaml",
+			gwNN: types.NamespacedName{
+				Namespace: "default",
+				Name:      "example-gateway",
+			},
+		})
+	})
+
 	t.Run("DFP Backend with TLS", func(t *testing.T) {
 		test(t, translatorTestCase{
 			inputFile:  "dfp/tls.yaml",

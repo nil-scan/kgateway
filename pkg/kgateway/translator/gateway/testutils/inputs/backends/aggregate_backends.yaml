@@ -1,0 +1,74 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: example-gateway
+  namespace: default
+spec:
+  gatewayClassName: example-gateway-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: aggregate-route
+  namespace: default
+spec:
+  parentRefs:
+    - name: example-gateway
+  hostnames:
+    - "example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: my-aggregate
+          kind: Backend
+          group: gateway.kgateway.dev
+          port: 80
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: my-aggregate
+  namespace: default
+spec:
+  type: Aggregate
+  aggregate:
+    members:
+      - backendRef:
+          name: primary-backend
+          group: gateway.kgateway.dev
+          kind: Backend
+      - backendRef:
+          name: secondary-backend
+          group: gateway.kgateway.dev
+          kind: Backend
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: primary-backend
+  namespace: default
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: primary.example.com
+        port: 8080
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: secondary-backend
+  namespace: default
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: secondary.example.com
+        port: 8080

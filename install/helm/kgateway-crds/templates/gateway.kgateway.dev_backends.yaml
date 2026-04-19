@@ -56,6 +56,107 @@ spec:
           spec:
             description: BackendSpec defines the desired state of Backend.
             properties:
+              aggregate:
+                description: Aggregate is the aggregate backend configuration.
+                properties:
+                  members:
+                    description: |-
+                      Members is the ordered list of backend references that form the aggregate cluster.
+                      Traffic is routed to the first available member in priority order.
+                      Each member may reference a Backend (gateway.kgateway.dev) or a Service (core).
+                      Cross-namespace references require a ReferenceGrant in the target namespace.
+                    items:
+                      description: AggregateBackendMember is a single member of an
+                        aggregate backend.
+                      properties:
+                        backendRef:
+                          description: |-
+                            BackendRef is a reference to the backend resource for this member.
+                            Supported kinds: Backend (gateway.kgateway.dev) and Service (core "").
+                          properties:
+                            group:
+                              default: ""
+                              description: |-
+                                Group is the group of the referent. For example, "gateway.networking.k8s.io".
+                                When unspecified or empty string, core API group is inferred.
+                              maxLength: 253
+                              pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                              type: string
+                            kind:
+                              default: Service
+                              description: |-
+                                Kind is the Kubernetes resource kind of the referent. For example
+                                "Service".
+
+                                Defaults to "Service" when not specified.
+
+                                ExternalName services can refer to CNAME DNS records that may live
+                                outside of the cluster and as such are difficult to reason about in
+                                terms of conformance. They also may not be safe to forward to (see
+                                CVE-2021-25740 for more information). Implementations SHOULD NOT
+                                support ExternalName Services.
+
+                                Support: Core (Services with a type other than ExternalName)
+
+                                Support: Implementation-specific (Services with type ExternalName)
+                              maxLength: 63
+                              minLength: 1
+                              pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
+                              type: string
+                            name:
+                              description: Name is the name of the referent.
+                              maxLength: 253
+                              minLength: 1
+                              type: string
+                            namespace:
+                              description: |-
+                                Namespace is the namespace of the backend. When unspecified, the local
+                                namespace is inferred.
+
+                                Note that when a namespace different than the local namespace is specified,
+                                a ReferenceGrant object is required in the referent namespace to allow that
+                                namespace's owner to accept the reference. See the ReferenceGrant
+                                documentation for details.
+
+                                Support: Core
+                              maxLength: 63
+                              minLength: 1
+                              pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                              type: string
+                            port:
+                              description: |-
+                                Port specifies the destination port number to use for this resource.
+                                Port is required when the referent is a Kubernetes Service. In this
+                                case, the port number is the service port number, not the target port.
+                                For other resources, destination port might be derived from the referent
+                                resource or this field.
+                              format: int32
+                              maximum: 65535
+                              minimum: 1
+                              type: integer
+                          required:
+                          - name
+                          type: object
+                          x-kubernetes-validations:
+                          - message: Must have port for Service reference
+                            rule: '(size(self.group) == 0 && self.kind == ''Service'')
+                              ? has(self.port) : true'
+                      required:
+                      - backendRef
+                      type: object
+                      x-kubernetes-validations:
+                      - message: only Backend (gateway.kgateway.dev) and Service (core)
+                          kinds are supported as aggregate members
+                        rule: ((!has(self.backendRef.group) || self.backendRef.group
+                          == '') && (!has(self.backendRef.kind) || self.backendRef.kind
+                          == 'Service')) || (self.backendRef.group == 'gateway.kgateway.dev'
+                          && self.backendRef.kind == 'Backend')
+                    maxItems: 16
+                    minItems: 1
+                    type: array
+                required:
+                - members
+                type: object
               aws:
                 description: Aws is the AWS backend configuration.
                 properties:
@@ -239,6 +340,7 @@ spec:
                 - Static
                 - DynamicForwardProxy
                 - GCP
+                - Aggregate
                 type: string
             type: object
             x-kubernetes-validations:
@@ -252,9 +354,11 @@ spec:
                 : true'
             - message: gcp backend must be specified when type is 'GCP'
               rule: 'self.type == ''GCP'' ? has(self.gcp) : true'
+            - message: aggregate backend must be specified when type is 'Aggregate'
+              rule: 'self.type == ''Aggregate'' ? has(self.aggregate) : true'
             - message: exactly one of the fields in [aws static dynamicForwardProxy
-                gcp] must be set
-              rule: '[has(self.aws),has(self.static),has(self.dynamicForwardProxy),has(self.gcp)].filter(x,x==true).size()
+                gcp aggregate] must be set
+              rule: '[has(self.aws),has(self.static),has(self.dynamicForwardProxy),has(self.gcp),has(self.aggregate)].filter(x,x==true).size()
                 == 1'
           status:
             description: BackendStatus defines the observed state of Backend.
