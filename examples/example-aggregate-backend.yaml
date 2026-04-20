@@ -1,0 +1,101 @@
+---
+kind: Gateway
+apiVersion: gateway.networking.k8s.io/v1
+metadata:
+  name: aggregate-backend-gateway
+  namespace: default
+spec:
+  gatewayClassName: kgateway
+  listeners:
+    - protocol: HTTP
+      port: 8080
+      name: http
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: aggregate-backend
+  namespace: default
+  labels:
+    app: aggregate-backend
+spec:
+  hostnames:
+    - aggregate-backend.localhost
+  parentRefs:
+    - kind: Gateway
+      name: aggregate-backend-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: gateway.kgateway.dev
+          kind: Backend
+          name: aggregate-backend
+          namespace: default
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: aggregate-backend
+  namespace: default
+spec:
+  type: Aggregate
+  aggregate:
+    backendRefs:
+      - group: gateway.kgateway.dev
+        kind: Backend
+        name: aggregate-backend-primary
+      - kind: Service
+        name: httpbin-secondary
+        namespace: httpbin
+        port: 8000
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: BackendConfigPolicy
+metadata:
+  name: aggregate-backend-primary
+  namespace: default
+spec:
+  targetRefs:
+    - group: gateway.kgateway.dev
+      kind: Backend
+      name: aggregate-backend-primary
+  healthCheck:
+    healthyThreshold: 1
+    http:
+      path: /status/200
+    interval: 5s
+    timeout: 10s
+    unhealthyThreshold: 3
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: Backend
+metadata:
+  name: aggregate-backend-primary
+  namespace: default
+spec:
+  type: Static
+  static:
+    hosts:
+      - host: httpbin.httpbin.svc.cluster.local
+        port: 8000
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-default-to-httpbin
+  namespace: httpbin
+spec:
+  from:
+    - group: gateway.kgateway.dev
+      kind: Backend
+      namespace: default
+  to:
+    - group: ""
+      kind: Service
+      name: httpbin-secondary

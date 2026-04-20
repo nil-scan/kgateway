@@ -52,7 +52,75 @@ spec:
         - image: docker.io/mccutchen/go-httpbin:v2.6.0
           imagePullPolicy: IfNotPresent
           name: httpbin
-          command: [ go-httpbin ]
+          command: [go-httpbin]
+          env:
+            - name: USE_REAL_HOSTNAME
+              value: "true"
+          args:
+            - "-port"
+            - "8080"
+            - "-max-duration"
+            - "600s" # override default 10s
+          ports:
+            - containerPort: 8080
+        - name: curl
+          image: curlimages/curl:7.83.1
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "200m"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "tail"
+            - "-f"
+            - "/dev/null"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin-secondary
+  namespace: httpbin
+  labels:
+    app: httpbin-secondary
+    service: httpbin
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8080
+    - name: tcp
+      port: 9000
+  selector:
+    app: httpbin-secondary
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin-secondary
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin-secondary
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin-secondary
+        version: v1
+    spec:
+      serviceAccountName: httpbin
+      containers:
+        - image: docker.io/mccutchen/go-httpbin:v2.6.0
+          imagePullPolicy: IfNotPresent
+          name: httpbin
+          command: [go-httpbin]
+          env:
+            - name: USE_REAL_HOSTNAME
+              value: "true"
           args:
             - "-port"
             - "8080"
