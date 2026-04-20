@@ -247,6 +247,15 @@ func processBackendForEnvoy(ctx context.Context, in ir.BackendObjectIR, out *env
 			beIr.errors = append(beIr.errors, err)
 		}
 	case spec.Aggregate != nil:
+		if len(beIr.aggregateIr.ClusterNames) == 0 {
+			// An empty cluster list would produce an invalid Envoy aggregate cluster config
+			// (ClusterConfigValidationError: value must contain at least 1 item(s)), causing a
+			// persistent NACK loop. This can happen when all member refs are unresolvable or
+			// when the Backend resource was created with a stale schema. Surface it as an error.
+			logger.Error("aggregate backend has no resolved member clusters, skipping cluster config to prevent Envoy NACK",
+				"backend", be.GetName(), "namespace", be.GetNamespace())
+			return nil
+		}
 		processAggregate(beIr.aggregateIr, out)
 	}
 	return nil
