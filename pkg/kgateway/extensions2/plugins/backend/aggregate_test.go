@@ -130,9 +130,9 @@ func TestBuildAggregateIr_SameNamespaceService(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "agg", Namespace: "default"},
 		Spec: kgateway.BackendSpec{
 			Aggregate: &kgateway.AggregateBackend{
-				Members: []kgateway.AggregateBackendMember{
-					{BackendRef: gwv1.BackendObjectReference{Name: "svc-primary", Port: ptr.To(gwv1.PortNumber(8080))}},
-					{BackendRef: gwv1.BackendObjectReference{Name: "svc-secondary", Port: ptr.To(gwv1.PortNumber(8080))}},
+				BackendRefs: []gwv1.BackendObjectReference{
+					{Name: "svc-primary", Port: ptr.To(gwv1.PortNumber(8080))},
+					{Name: "svc-secondary", Port: ptr.To(gwv1.PortNumber(8080))},
 				},
 			},
 		},
@@ -162,17 +162,17 @@ func TestBuildAggregateIr_SameNamespaceBackend(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "agg", Namespace: "default"},
 		Spec: kgateway.BackendSpec{
 			Aggregate: &kgateway.AggregateBackend{
-				Members: []kgateway.AggregateBackendMember{
-					{BackendRef: gwv1.BackendObjectReference{
+				BackendRefs: []gwv1.BackendObjectReference{
+					{
 						Group: new(gwv1.Group(kgwwellknown.BackendGVK.Group)),
 						Kind:  ptr.To(gwv1.Kind("Backend")),
 						Name:  "primary",
-					}},
-					{BackendRef: gwv1.BackendObjectReference{
+					},
+					{
 						Group: new(gwv1.Group(kgwwellknown.BackendGVK.Group)),
 						Kind:  ptr.To(gwv1.Kind("Backend")),
 						Name:  "secondary",
-					}},
+					},
 				},
 			},
 		},
@@ -193,8 +193,8 @@ func TestBuildAggregateIr_UnresolvableMember(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "agg", Namespace: "default"},
 		Spec: kgateway.BackendSpec{
 			Aggregate: &kgateway.AggregateBackend{
-				Members: []kgateway.AggregateBackendMember{
-					{BackendRef: gwv1.BackendObjectReference{Name: "missing-svc", Port: ptr.To(gwv1.PortNumber(8080))}},
+				BackendRefs: []gwv1.BackendObjectReference{
+					{Name: "missing-svc", Port: ptr.To(gwv1.PortNumber(8080))},
 				},
 			},
 		},
@@ -217,12 +217,12 @@ func TestBuildAggregateIr_CrossNamespaceMissingRefGrant(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "agg", Namespace: "default"},
 		Spec: kgateway.BackendSpec{
 			Aggregate: &kgateway.AggregateBackend{
-				Members: []kgateway.AggregateBackendMember{
-					{BackendRef: gwv1.BackendObjectReference{
+				BackendRefs: []gwv1.BackendObjectReference{
+					{
 						Name:      "remote-svc",
 						Namespace: ptr.To(gwv1.Namespace("other")),
 						Port:      ptr.To(gwv1.PortNumber(8080)),
-					}},
+					},
 				},
 			},
 		},
@@ -240,12 +240,12 @@ func TestBuildAggregateIr_SelfReferenceRejected(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "agg", Namespace: "default"},
 		Spec: kgateway.BackendSpec{
 			Aggregate: &kgateway.AggregateBackend{
-				Members: []kgateway.AggregateBackendMember{
-					{BackendRef: gwv1.BackendObjectReference{
+				BackendRefs: []gwv1.BackendObjectReference{
+					{
 						Group: new(gwv1.Group(kgwwellknown.BackendGVK.Group)),
 						Kind:  ptr.To(gwv1.Kind("Backend")),
 						Name:  "agg", // same name as parent
-					}},
+					},
 				},
 			},
 		},

@@ -75,9 +75,7 @@ func buildAggregateIr(
 	aggregateIr := &AggregateIr{}
 	var errs []error
 
-	for i, member := range b.Spec.Aggregate.Members {
-		ref := member.BackendRef
-
+	for i, ref := range b.Spec.Aggregate.BackendRefs {
 		memberGroup := ""
 		if ref.Group != nil {
 			memberGroup = string(*ref.Group)

@@ -52,15 +52,13 @@ metadata:
 spec:
   type: Aggregate
   aggregate:
-    members:
-      - backendRef:
-          group: gateway.kgateway.dev
-          kind: Backend
-          name: primary
-      - backendRef:
-          group: gateway.kgateway.dev
-          kind: Backend
-          name: secondary
+    backendRefs:
+      - group: gateway.kgateway.dev
+        kind: Backend
+        name: primary
+      - group: gateway.kgateway.dev
+        kind: Backend
+        name: secondary
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -91,13 +89,11 @@ metadata:
 spec:
   type: Aggregate
   aggregate:
-    members:
-      - backendRef:
-          name: primary-svc
-          port: 8080
-      - backendRef:
-          name: secondary-svc
-          port: 8080
+    backendRefs:
+      - name: primary-svc
+        port: 8080
+      - name: secondary-svc
+        port: 8080
 ```
 
 ## Cross-namespace members
@@ -127,16 +123,14 @@ metadata:
 spec:
   type: Aggregate
   aggregate:
-    members:
-      - backendRef:
-          group: gateway.kgateway.dev
-          kind: Backend
-          name: local-backend
-      - backendRef:
-          group: gateway.kgateway.dev
-          kind: Backend
-          name: remote-backend
-          namespace: other
+    backendRefs:
+      - group: gateway.kgateway.dev
+        kind: Backend
+        name: local-backend
+      - group: gateway.kgateway.dev
+        kind: Backend
+        name: remote-backend
+        namespace: other
 ```
 
 ## Field reference
@@ -145,13 +139,12 @@ spec:
 spec:
   type: Aggregate
   aggregate:
-    members:                 # required; 1-16 entries, evaluated in priority order
-      - backendRef:
-          group: <string>    # "gateway.kgateway.dev" for Backend, "" for Service
-          kind: <string>     # "Backend" or "Service" (default: "Service")
-          name: <string>     # required
-          namespace: <string> # optional; defaults to the aggregate Backend's namespace
-          port: <int>        # required for Service members; unused for Backend members
+    backendRefs:             # required; 1-16 entries, evaluated in priority order
+      - group: <string>    # "gateway.kgateway.dev" for Backend, "" for Service
+        kind: <string>     # "Backend" or "Service" (default: "Service")
+        name: <string>     # required
+        namespace: <string> # optional; defaults to the aggregate Backend's namespace
+        port: <int>        # required for Service members; unused for Backend members
 ```
 
 ## Status

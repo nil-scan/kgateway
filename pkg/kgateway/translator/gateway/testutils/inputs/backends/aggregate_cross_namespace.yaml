@@ -39,16 +39,14 @@ metadata:
 spec:
   type: Aggregate
   aggregate:
-    members:
-      - backendRef:
-          name: local-backend
-          group: gateway.kgateway.dev
-          kind: Backend
-      - backendRef:
-          name: remote-backend
-          namespace: other
-          group: gateway.kgateway.dev
-          kind: Backend
+    backendRefs:
+      - name: local-backend
+        group: gateway.kgateway.dev
+        kind: Backend
+      - name: remote-backend
+        namespace: other
+        group: gateway.kgateway.dev
+        kind: Backend
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: Backend

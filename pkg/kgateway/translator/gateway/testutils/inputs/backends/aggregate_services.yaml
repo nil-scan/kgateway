@@ -39,13 +39,11 @@ metadata:
 spec:
   type: Aggregate
   aggregate:
-    members:
-      - backendRef:
-          name: primary-svc
-          port: 8080
-      - backendRef:
-          name: secondary-svc
-          port: 8080
+    backendRefs:
+      - name: primary-svc
+        port: 8080
+      - name: secondary-svc
+        port: 8080
 ---
 apiVersion: v1
 kind: Service

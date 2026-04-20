@@ -260,24 +260,18 @@ type Host struct {
 // member backends. Envoy routes traffic to the highest-priority available member,
 // falling back to subsequent members on failure. This maps directly to the Envoy
 // aggregate cluster type (envoy.clusters.aggregate).
+//
+// +kubebuilder:validation:XValidation:message="only Backend (gateway.kgateway.dev) and Service (core) kinds are supported as aggregate members",rule="self.backendRefs.all(ref, ((!has(ref.group) || ref.group == ”) && (!has(ref.kind) || ref.kind == 'Service')) || (ref.group == 'gateway.kgateway.dev' && ref.kind == 'Backend'))"
 type AggregateBackend struct {
-	// Members is the ordered list of backend references that form the aggregate cluster.
-	// Traffic is routed to the first available member in priority order.
-	// Each member may reference a Backend (gateway.kgateway.dev) or a Service (core).
+	// BackendRefs is the ordered list of backend references that form the aggregate cluster,
+	// evaluated in priority order. Envoy routes to the first available member and falls back
+	// to subsequent entries on failure.
+	// Each entry may reference a Backend (gateway.kgateway.dev) or a Service (core "").
 	// Cross-namespace references require a ReferenceGrant in the target namespace.
 	// +required
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=16
-	Members []AggregateBackendMember `json:"members"`
-}
-
-// AggregateBackendMember is a single member of an aggregate backend.
-// +kubebuilder:validation:XValidation:message="only Backend (gateway.kgateway.dev) and Service (core) kinds are supported as aggregate members",rule="((!has(self.backendRef.group) || self.backendRef.group == ”) && (!has(self.backendRef.kind) || self.backendRef.kind == 'Service')) || (self.backendRef.group == 'gateway.kgateway.dev' && self.backendRef.kind == 'Backend')"
-type AggregateBackendMember struct {
-	// BackendRef is a reference to the backend resource for this member.
-	// Supported kinds: Backend (gateway.kgateway.dev) and Service (core "").
-	// +required
-	BackendRef gwv1.BackendObjectReference `json:"backendRef"`
+	BackendRefs []gwv1.BackendObjectReference `json:"backendRefs"`
 }
 
 // BackendStatus defines the observed state of Backend.
